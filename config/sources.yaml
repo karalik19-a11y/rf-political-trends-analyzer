@@ -1,54 +1,60 @@
-# Публичные RSS-источники политических и общих новостей РФ
-# Добавляйте только открытые ленты. Проверяйте доступность и robots.txt.
+# Независимые / негосударственные публичные RSS (не госСМИ РФ)
+# При блокировках часть лент может быть недоступна без VPN.
 
 sources:
-  - name: "TASS"
-    url: "https://tass.ru/rss/v2.xml"
+  - name: "Meduza"
+    url: "https://meduza.io/rss/all"
     category: "politics"
     language: "ru"
     enabled: true
 
-  - name: "RIA Novosti"
-    url: "https://ria.ru/export/rss2/index.xml"
+  - name: "Meduza EN"
+    url: "https://meduza.io/rss/en/all"
+    category: "politics"
+    language: "en"
+    enabled: true
+
+  - name: "Mediazona"
+    url: "https://zona.media/rss"
     category: "politics"
     language: "ru"
     enabled: true
 
-  - name: "Interfax"
-    url: "https://www.interfax.ru/rss.asp"
-    category: "politics"
-    language: "ru"
-    enabled: true
-
-  - name: "Izvestia"
-    url: "https://iz.ru/xml/rss/all.xml"
-    category: "politics"
-    language: "ru"
-    enabled: true
-
-  - name: "Rossiyskaya Gazeta"
-    url: "https://rg.ru/xml/index.xml"
-    category: "politics"
-    language: "ru"
-    enabled: true
-
-  - name: "Kommersant"
-    url: "https://www.kommersant.ru/RSS/news.xml"
-    category: "politics"
-    language: "ru"
-    enabled: true
-
-  # Дополнительные (можно отключить при проблемах с доступом)
-  - name: "Moscow Times"
+  - name: "The Moscow Times"
     url: "https://www.themoscowtimes.com/rss/news"
     category: "politics"
     language: "en"
-    enabled: false
+    enabled: true
+
+  - name: "BBC Russian"
+    url: "https://feeds.bbci.co.uk/russian/rss.xml"
+    category: "politics"
+    language: "ru"
+    enabled: true
+
+  - name: "DW Russian"
+    url: "https://rss.dw.com/rdf/rss-ru-all"
+    category: "politics"
+    language: "ru"
+    enabled: true
+
+  - name: "Novaya Gazeta Europe"
+    url: "https://novayagazeta.eu/feed/rss"
+    category: "politics"
+    language: "ru"
+    enabled: true
+
+  - name: "Radio Svoboda"
+    url: "https://www.svoboda.org/api/z-pqpiev-qpp"
+    category: "politics"
+    language: "ru"
+    enabled: true
 
 settings:
-  request_timeout: 15
-  user_agent: "RF-Political-Trends-Analyzer/1.1 (research; +https://github.com/karalik19-a11y/rf-political-trends-analyzer)"
-  max_items_per_source: 50
-  delay_between_requests: 1.5  # секунды
-  enable_sentiment: true       # использовать transformers для sentiment (требует torch)
+  request_timeout: 20
+  user_agent: "RF-Political-Trends-Analyzer/1.3 (research; independent sources; +https://github.com/karalik19-a11y/rf-political-trends-analyzer)"
+  max_items_per_source: 40
+  delay_between_requests: 2.0
+  # Sentiment off by default for faster first run / less RAM
+  enable_sentiment: false
   sentiment_model: "cointegrated/rubert-tiny-sentiment-balanced"
