@@ -20,15 +20,35 @@ sources:
     language: "ru"
     enabled: true
 
-  # Пример дополнительных (проверяйте актуальность URL)
-  # - name: "Izvestia"
-  #   url: "https://iz.ru/rss"
-  #   category: "politics"
-  #   language: "ru"
-  #   enabled: false
+  - name: "Izvestia"
+    url: "https://iz.ru/xml/rss/all.xml"
+    category: "politics"
+    language: "ru"
+    enabled: true
+
+  - name: "Rossiyskaya Gazeta"
+    url: "https://rg.ru/xml/index.xml"
+    category: "politics"
+    language: "ru"
+    enabled: true
+
+  - name: "Kommersant"
+    url: "https://www.kommersant.ru/RSS/news.xml"
+    category: "politics"
+    language: "ru"
+    enabled: true
+
+  # Дополнительные (можно отключить при проблемах с доступом)
+  - name: "Moscow Times"
+    url: "https://www.themoscowtimes.com/rss/news"
+    category: "politics"
+    language: "en"
+    enabled: false
 
 settings:
   request_timeout: 15
-  user_agent: "RF-Political-Trends-Analyzer/1.0 (research; +https://github.com/karalik19-a11y/rf-political-trends-analyzer)"
+  user_agent: "RF-Political-Trends-Analyzer/1.1 (research; +https://github.com/karalik19-a11y/rf-political-trends-analyzer)"
   max_items_per_source: 50
-  delay_between_requests: 1.5  # секунды, чтобы не нагружать серверы
+  delay_between_requests: 1.5  # секунды
+  enable_sentiment: true       # использовать transformers для sentiment (требует torch)
+  sentiment_model: "cointegrated/rubert-tiny-sentiment-balanced"

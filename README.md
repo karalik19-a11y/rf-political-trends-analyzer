@@ -4,13 +4,14 @@
 
 **Важно:** Система работает только с открытыми источниками (RSS официальных агентств и публичных новостных сайтов). Не предназначена для несанкционированного сбора данных, мониторинга частных лиц или нарушения законодательства. Используйте ответственно, соблюдайте robots.txt, rate limits и условия использования источников.
 
-## Возможности
+## Возможности (v1.1)
 
-- Автоматический сбор новостей из RSS-лент (TASS, RIA Novosti, Interfax и др.)
+- Автоматический сбор новостей из RSS-лент (TASS, RIA, Interfax, Известия, РГ, Коммерсантъ и др.)
 - Хранение в SQLite
-- Базовый NLP-анализ (ключевые слова, частота тем, простые тренды по времени)
-- Streamlit-дашборд для визуализации
-- Легко расширяется (добавление источников, более сложные модели)
+- **Русский NLP**: извлечение ключевых слов + sentiment-анализ (модель `cointegrated/rubert-tiny-sentiment-balanced`)
+- **Планировщик** ежедневного сбора (APScheduler)
+- **Экспорт** в CSV и JSON
+- Streamlit-дашборд с графиками, трендами, sentiment и поиском по темам
 
 ## Быстрый старт
 
@@ -21,33 +22,50 @@ python -m venv venv
 source venv/bin/activate   # Windows: venv\Scripts\activate
 pip install -r requirements.txt
 
-# Сбор данных (один раз или по расписанию)
+# Разовый сбор данных
 python -m src.collector
 
 # Запуск дашборда
 streamlit run src/dashboard.py
+
+# Ежедневный сбор (по умолчанию в 06:00 UTC)
+python -m src.scheduler
+# или с другим временем:
+python -m src.scheduler --hour 3 --minute 30
+
+# Экспорт
+python -m src.export --format both
 ```
+
+> При первом запуске sentiment-модели transformers скачает веса (~десятки МБ). Можно отключить в `config/sources.yaml` → `enable_sentiment: false`.
 
 ## Структура
 
 ```
-src/
-  collector.py      # Сбор из RSS
-  analyzer.py       # Анализ и тренды
-  database.py       # Работа с SQLite
-  dashboard.py      # Streamlit UI
 config/
-  sources.yaml      # Список RSS-источников
-requirements.txt
+  sources.yaml          # RSS-источники + настройки NLP
+src/
+  collector.py          # Сбор из RSS + NLP
+  nlp_utils.py          # Ключевые слова + sentiment (transformers)
+  database.py           # SQLite
+  analyzer.py           # Тренды и агрегаты
+  dashboard.py          # Streamlit UI
+  scheduler.py          # Ежедневный запуск
+  export.py             # CSV / JSON
+exports/                # Папка экспортов (создаётся автоматически)
+data/                   # SQLite (в .gitignore)
 ```
 
 ## Источники (по умолчанию)
 
-- TASS (tass.ru)
+- TASS
 - RIA Novosti
-- Другие публичные RSS (настраивается в `config/sources.yaml`)
+- Interfax
+- Izvestia
+- Rossiyskaya Gazeta
+- Kommersant
 
-Добавляйте только легальные публичные ленты.
+Добавляйте только легальные публичные ленты в `config/sources.yaml`.
 
 ## Этические и правовые замечания
 
@@ -57,12 +75,10 @@ requirements.txt
 - Для коммерческого или масштабного использования проверяйте лицензии источников.
 - Система не хранит персональные данные частных лиц.
 
-## Расширение
+## Требования
 
-- Добавьте Telegram-каналы через публичные API/библиотеки (с осторожностью).
-- Подключите более мощные модели: `transformers` + русские модели (DeepPavlov, sberbank-ai).
-- Интеграция с X/Twitter API (требует ключей и соблюдения ToS).
-- Планировщик: APScheduler или cron.
+- Python 3.9+
+- Для sentiment: torch + transformers (можно отключить)
 
 ## Лицензия
 
