@@ -1,0 +1,34 @@
+# Публичные RSS-источники политических и общих новостей РФ
+# Добавляйте только открытые ленты. Проверяйте доступность и robots.txt.
+
+sources:
+  - name: "TASS"
+    url: "https://tass.ru/rss/v2.xml"
+    category: "politics"
+    language: "ru"
+    enabled: true
+
+  - name: "RIA Novosti"
+    url: "https://ria.ru/export/rss2/index.xml"
+    category: "politics"
+    language: "ru"
+    enabled: true
+
+  - name: "Interfax"
+    url: "https://www.interfax.ru/rss.asp"
+    category: "politics"
+    language: "ru"
+    enabled: true
+
+  # Пример дополнительных (проверяйте актуальность URL)
+  # - name: "Izvestia"
+  #   url: "https://iz.ru/rss"
+  #   category: "politics"
+  #   language: "ru"
+  #   enabled: false
+
+settings:
+  request_timeout: 15
+  user_agent: "RF-Political-Trends-Analyzer/1.0 (research; +https://github.com/karalik19-a11y/rf-political-trends-analyzer)"
+  max_items_per_source: 50
+  delay_between_requests: 1.5  # секунды, чтобы не нагружать серверы

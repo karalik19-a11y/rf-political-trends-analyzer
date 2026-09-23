@@ -1,2 +1,69 @@
-# rf-political-trends-analyzer
-Open-source system for collecting and analyzing public political news and trends from Russian Federation sources using RSS and public data. Educational / research use.
+# RF Political Trends Analyzer
+
+Открытая система сбора и анализа **публичной** политической информации и тенденций по Российской Федерации.
+
+**Важно:** Система работает только с открытыми источниками (RSS официальных агентств и публичных новостных сайтов). Не предназначена для несанкционированного сбора данных, мониторинга частных лиц или нарушения законодательства. Используйте ответственно, соблюдайте robots.txt, rate limits и условия использования источников.
+
+## Возможности
+
+- Автоматический сбор новостей из RSS-лент (TASS, RIA Novosti, Interfax и др.)
+- Хранение в SQLite
+- Базовый NLP-анализ (ключевые слова, частота тем, простые тренды по времени)
+- Streamlit-дашборд для визуализации
+- Легко расширяется (добавление источников, более сложные модели)
+
+## Быстрый старт
+
+```bash
+git clone https://github.com/karalik19-a11y/rf-political-trends-analyzer.git
+cd rf-political-trends-analyzer
+python -m venv venv
+source venv/bin/activate   # Windows: venv\Scripts\activate
+pip install -r requirements.txt
+
+# Сбор данных (один раз или по расписанию)
+python -m src.collector
+
+# Запуск дашборда
+streamlit run src/dashboard.py
+```
+
+## Структура
+
+```
+src/
+  collector.py      # Сбор из RSS
+  analyzer.py       # Анализ и тренды
+  database.py       # Работа с SQLite
+  dashboard.py      # Streamlit UI
+config/
+  sources.yaml      # Список RSS-источников
+requirements.txt
+```
+
+## Источники (по умолчанию)
+
+- TASS (tass.ru)
+- RIA Novosti
+- Другие публичные RSS (настраивается в `config/sources.yaml`)
+
+Добавляйте только легальные публичные ленты.
+
+## Этические и правовые замечания
+
+- Собирайте только публично доступные данные.
+- Соблюдайте robots.txt и условия использования сайтов.
+- Не используйте для доксинга, преследования или незаконной деятельности.
+- Для коммерческого или масштабного использования проверяйте лицензии источников.
+- Система не хранит персональные данные частных лиц.
+
+## Расширение
+
+- Добавьте Telegram-каналы через публичные API/библиотеки (с осторожностью).
+- Подключите более мощные модели: `transformers` + русские модели (DeepPavlov, sberbank-ai).
+- Интеграция с X/Twitter API (требует ключей и соблюдения ToS).
+- Планировщик: APScheduler или cron.
+
+## Лицензия
+
+MIT. Используйте на свой страх и риск.
