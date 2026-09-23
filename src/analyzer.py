@@ -1,12 +1,13 @@
-"""Simple trend and keyword analysis."""
+"""Trend and keyword analysis + sentiment aggregates."""
 
-from collections import Counter, defaultdict
+from collections import Counter
 from datetime import datetime, timedelta
-from typing import Dict, List, Any, Tuple
+from typing import Dict, List, Any, Tuple, Optional
 
 import pandas as pd
 
 from .database import get_all_for_analysis, get_items_by_date_range
+from .nlp_utils import extract_keywords
 
 
 def load_dataframe(limit: int = 3000) -> pd.DataFrame:
@@ -40,27 +41,49 @@ def volume_by_source(df: pd.DataFrame) -> pd.Series:
     return df["source"].value_counts()
 
 
+def sentiment_stats(df: pd.DataFrame) -> Dict[str, Any]:
+    if df.empty or "sentiment_score" not in df.columns:
+        return {"avg": None, "positive": 0, "neutral": 0, "negative": 0, "total_with_score": 0}
+    scores = df["sentiment_score"].dropna()
+    if scores.empty:
+        return {"avg": None, "positive": 0, "neutral": 0, "negative": 0, "total_with_score": 0}
+    pos = (scores > 0.2).sum()
+    neg = (scores < -0.2).sum()
+    neu = len(scores) - pos - neg
+    return {
+        "avg": float(scores.mean()),
+        "positive": int(pos),
+        "neutral": int(neu),
+        "negative": int(neg),
+        "total_with_score": len(scores),
+    }
+
+
 def recent_trends(days: int = 7) -> Dict[str, Any]:
     end = datetime.utcnow()
     start = end - timedelta(days=days)
     items = get_items_by_date_range(start, end)
     if not items:
-        return {"period_days": days, "total": 0, "top_keywords": [], "by_source": {}}
+        return {"period_days": days, "total": 0, "top_keywords": [], "by_source": {}, "sentiment": {}}
 
     titles = [i.title for i in items]
     all_text = " ".join(titles)
-    # reuse simple extractor logic
-    from .collector import extract_keywords
     kws = extract_keywords(all_text, max_kw=15)
-    top = [(k, 1) for k in kws.split(",") if k]  # simplified
+    top = [(k, 1) for k in kws.split(",") if k]
 
     by_source = Counter(i.source for i in items)
+    scores = [i.sentiment_score for i in items if i.sentiment_score is not None]
+    sent = {
+        "avg": sum(scores) / len(scores) if scores else None,
+        "count": len(scores),
+    }
     return {
         "period_days": days,
         "total": len(items),
         "top_keywords": top,
         "by_source": dict(by_source),
         "sample_titles": titles[:10],
+        "sentiment": sent,
     }
 
 

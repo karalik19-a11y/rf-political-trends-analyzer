@@ -1,9 +1,10 @@
 """Collect public RSS feeds for RF political news."""
 
+import logging
 import time
 from datetime import datetime
 from pathlib import Path
-from typing import Dict, List, Any
+from typing import Dict, Any
 from email.utils import parsedate_to_datetime
 
 import feedparser
@@ -12,6 +13,10 @@ import yaml
 from bs4 import BeautifulSoup
 
 from .database import init_db, upsert_item
+from .nlp_utils import extract_keywords, analyze_sentiment
+
+logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
+logger = logging.getLogger(__name__)
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 CONFIG_PATH = BASE_DIR / "config" / "sources.yaml"
@@ -29,7 +34,7 @@ def clean_html(text: str) -> str:
     return soup.get_text(separator=" ", strip=True)
 
 
-def parse_date(entry) -> datetime | None:
+def parse_date(entry) -> datetime:
     for attr in ("published_parsed", "updated_parsed"):
         t = getattr(entry, attr, None)
         if t:
@@ -37,7 +42,6 @@ def parse_date(entry) -> datetime | None:
                 return datetime(*t[:6])
             except Exception:
                 pass
-    # fallback string parse
     for attr in ("published", "updated"):
         s = getattr(entry, attr, None)
         if s:
@@ -48,40 +52,6 @@ def parse_date(entry) -> datetime | None:
     return datetime.utcnow()
 
 
-def extract_keywords(text: str, max_kw: int = 8) -> str:
-    """Very simple keyword extraction (frequency-based). For production use better NLP."""
-    if not text:
-        return ""
-    # Russian stopwords (minimal set)
-    stop = {
-        "и", "в", "во", "не", "что", "он", "на", "я", "с", "со", "как", "а", "то", "все",
-        "она", "так", "его", "но", "да", "ты", "к", "у", "же", "вы", "за", "бы", "по",
-        "только", "ее", "мне", "было", "вот", "от", "меня", "еще", "нет", "о", "из",
-        "ему", "теперь", "когда", "даже", "ну", "вдруг", "ли", "если", "уже", "или",
-        "ни", "быть", "был", "него", "до", "вас", "нибудь", "опять", "уж", "вам",
-        "ведь", "там", "потом", "себя", "ничего", "ей", "может", "они", "тут", "где",
-        "есть", "надо", "ней", "для", "мы", "тебя", "их", "чем", "была", "сам",
-        "чтоб", "без", "будто", "чего", "раз", "тоже", "себе", "под", "будет",
-        "ж", "тогда", "кто", "этот", "того", "потому", "этого", "какой", "совсем",
-        "ним", "здесь", "этом", "один", "почти", "мой", "тем", "чтобы", "нее",
-        "сейчас", "были", "куда", "зачем", "всех", "никогда", "можно", "при",
-        "наконец", "два", "об", "другой", "хоть", "после", "над", "больше",
-        "тот", "через", "эти", "нас", "про", "всего", "них", "какая", "много",
-        "разве", "три", "эту", "моя", "впрочем", "хорошо", "свою", "этой",
-        "перед", "иногда", "лучше", "чуть", "том", "нельзя", "такой", "им",
-        "более", "всегда", "конечно", "всю", "между", "это", "также", "россия",
-        "рф", "российский", "года", "году", "года",
-    }
-    words = []
-    for w in text.lower().replace(".", " ").replace(",", " ").split():
-        w = w.strip("«»\"'\-–—()[]")
-        if len(w) > 3 and w not in stop and w.isalpha():
-            words.append(w)
-    from collections import Counter
-    most = Counter(words).most_common(max_kw)
-    return ",".join(w for w, _ in most)
-
-
 def fetch_feed(url: str, user_agent: str, timeout: int) -> feedparser.FeedParserDict:
     headers = {"User-Agent": user_agent}
     resp = requests.get(url, headers=headers, timeout=timeout)
@@ -89,14 +59,17 @@ def fetch_feed(url: str, user_agent: str, timeout: int) -> feedparser.FeedParser
     return feedparser.parse(resp.content)
 
 
-def collect() -> None:
+def collect() -> int:
+    """Run one collection cycle. Returns number of new items."""
     init_db()
     cfg = load_config()
     settings = cfg.get("settings", {})
-    ua = settings.get("user_agent", "RF-Political-Trends-Analyzer/1.0")
+    ua = settings.get("user_agent", "RF-Political-Trends-Analyzer/1.1")
     timeout = settings.get("request_timeout", 15)
     delay = settings.get("delay_between_requests", 1.5)
     max_items = settings.get("max_items_per_source", 50)
+    enable_sentiment = settings.get("enable_sentiment", True)
+    model_name = settings.get("sentiment_model", "cointegrated/rubert-tiny-sentiment-balanced")
 
     total_new = 0
     for src in cfg.get("sources", []):
@@ -104,7 +77,7 @@ def collect() -> None:
             continue
         name = src["name"]
         url = src["url"]
-        print(f"Collecting from {name} ...")
+        logger.info("Collecting from %s ...", name)
         try:
             feed = fetch_feed(url, ua, timeout)
             count = 0
@@ -118,6 +91,10 @@ def collect() -> None:
                 full_text = f"{title} {summary}"
                 keywords = extract_keywords(full_text)
 
+                sentiment = None
+                if enable_sentiment:
+                    sentiment = analyze_sentiment(full_text, model_name=model_name)
+
                 item = {
                     "source": name,
                     "title": title,
@@ -127,16 +104,18 @@ def collect() -> None:
                     "category": src.get("category", "politics"),
                     "language": src.get("language", "ru"),
                     "keywords": keywords,
+                    "sentiment_score": sentiment,
                 }
                 if upsert_item(item):
                     count += 1
                     total_new += 1
-            print(f"  +{count} new items from {name}")
+            logger.info("  +%d new items from %s", count, name)
         except Exception as e:
-            print(f"  Error collecting {name}: {e}")
+            logger.error("  Error collecting %s: %s", name, e)
         time.sleep(delay)
 
-    print(f"Done. Total new items: {total_new}")
+    logger.info("Done. Total new items: %d", total_new)
+    return total_new
 
 
 if __name__ == "__main__":

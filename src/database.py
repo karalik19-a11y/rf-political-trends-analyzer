@@ -28,9 +28,8 @@ class NewsItem(Base):
     collected_at = Column(DateTime, default=datetime.utcnow)
     category = Column(String(50))
     language = Column(String(10), default="ru")
-    # Simple analysis fields
     keywords = Column(Text)  # comma-separated
-    sentiment_score = Column(Float, nullable=True)  # placeholder for future models
+    sentiment_score = Column(Float, nullable=True)  # -1 .. +1
 
     __table_args__ = (
         Index("ix_published_source", "published", "source"),
@@ -110,8 +109,21 @@ def get_all_for_analysis(limit: int = 5000) -> List[Dict[str, Any]]:
                 "summary": r.summary or "",
                 "published": r.published,
                 "keywords": r.keywords,
+                "sentiment_score": r.sentiment_score,
+                "link": r.link,
             }
             for r in rows
         ]
+    finally:
+        session.close()
+
+
+def get_all_items(limit: Optional[int] = None) -> List[NewsItem]:
+    session = SessionLocal()
+    try:
+        q = session.query(NewsItem).order_by(NewsItem.published.desc())
+        if limit:
+            q = q.limit(limit)
+        return q.all()
     finally:
         session.close()
