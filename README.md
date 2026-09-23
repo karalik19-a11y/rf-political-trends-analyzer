@@ -1,35 +1,44 @@
-# RF Political Trends Analyzer
+# RF Regional Political Analytics v2
 
-Сбор и анализ **публичных** политических новостей по РФ из **независимых** источников (не госСМИ).
+Сервис **региональной** политической аналитики на **открытых** данных.
 
-Источники по умолчанию: **Meduza, Mediazona, The Moscow Times, BBC Russian, DW Russian, Novaya Gazeta Europe, Radio Svoboda**.
+## Что реализовано (A + B + C)
 
-## Windows — установка
+| | Модуль | Содержание |
+|---|--------|------------|
+| **A** | Территории | 80+ субъектов РФ, столицы, координаты, ФО; справочник городов → регион |
+| **B** | Выборы | CSV по субъектам (явка, доля лидера); DEMO-структура + загрузка ваших файлов |
+| **C** | Медиа→гео | Независимые RSS + привязка текста к региону/городу; тепловая карта упоминаний |
 
-1. Python 3.9+ с [python.org](https://www.python.org/downloads/) (**Add to PATH**).
-2. Скачайте ZIP репозитория → папка `installer\windows` → **`install.bat`**.
-3. Ярлык на рабочем столе **RF Political Trends Dashboard**.
+**Не делается:** сбор политических взглядов частных лиц «по каждой улице» (это слежка).
 
-Переустановка поверх: `install.ps1 -Force`
-
-Если RSS недоступны из РФ — включите VPN, затем **Run Collector** или кнопку «Собрать новости» в сайдбаре.
-
-## В приложении
-
-- **Собрать новости сейчас**
-- **Проверить обновления** / **Скачать и установить** (без удаления, `data/` сохраняется)
-- Экспорт CSV/JSON
-
-## Ручной запуск
+## Запуск
 
 ```bash
-pip install feedparser requests pyyaml pandas streamlit plotly sqlalchemy python-dateutil nltk scikit-learn beautifulsoup4 lxml apscheduler
-python run_collector.py
-python run_dashboard.py
+pip install -r requirements.txt
+python run_collector_regional.py   # медиа + геотеги
+python run_regional.py             # дашборд: карта, выборы, медиа
 ```
 
-## Важно
+Windows: после `install.bat` можно вручную:
+```
+venv\Scripts\python.exe run_regional.py
+```
 
-Только публичные RSS. Не для слежки. Соблюдайте закон и этику.
+## Выборы (B)
+
+Положите CSV в `data/elections/` (см. `data/elections/README.md`).
+Кнопка в UI создаёт DEMO-файл **только для проверки пайплайна**.
+
+## Медиа (C)
+
+Источники: Meduza, Mediazona, Moscow Times, BBC, DW, Novaya Gazeta Europe, Svoboda.
+Из РФ часть доменов может требовать VPN.
+
+## Ограничения
+
+- Геопривязка новостей — по топонимам (ошибки возможны).
+- Уровень детализации: **субъект / крупный город**, не подъезд и не ФИО.
+- Выборы достоверны только из ваших официальных CSV.
 
 MIT
