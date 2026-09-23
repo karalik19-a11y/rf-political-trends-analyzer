@@ -1,11 +1,5 @@
 #!/usr/bin/env python3
-"""
-One entry point:
-  python bootstrap.py           -> ensure env + open dashboard
-  python bootstrap.py --update  -> update from GitHub then open dashboard
-  python bootstrap.py --collect -> collect media then open dashboard
-  python bootstrap.py --no-browser
-"""
+"""Simple launcher: venv + deps + dashboard."""
 
 from __future__ import annotations
 
@@ -47,7 +41,9 @@ def ensure_deps(py: Path) -> None:
         print("[2/3] Dependencies OK")
         return
     print("[2/3] Installing dependencies (first time may take a few minutes)...")
-    subprocess.check_call([str(py), "-m", "pip", "install", "--upgrade", "pip", "setuptools", "wheel"])
+    subprocess.check_call(
+        [str(py), "-m", "pip", "install", "--upgrade", "pip", "setuptools", "wheel"]
+    )
     subprocess.check_call([str(py), "-m", "pip", "install", "-r", str(REQ)])
     marker.write_text("ok", encoding="utf-8")
     print("     Done.")
@@ -55,21 +51,8 @@ def ensure_deps(py: Path) -> None:
 
 def run_update(py: Path) -> None:
     print("[update] Downloading latest from GitHub...")
-    # run updater with venv python so requests is available
-    code = r"
-import sys
-from pathlib import Path
-sys.path.insert(0, str(Path('.').resolve() / 'src'))
-from updater import apply_update, check_update
-av, info = check_update()
-print('local:', info.get('local_version'), 'remote:', info.get('remote_version'), info.get('remote_sha'))
-if av or True:
-    print(apply_update())
-else:
-    print('Already up to date')
-"
-    subprocess.check_call([str(py), "-c", code], cwd=str(ROOT))
-    # refresh deps after update
+    script = ROOT / "do_update.py"
+    subprocess.check_call([str(py), str(script)], cwd=str(ROOT))
     marker = VENV / ".deps_ok"
     if marker.exists():
         marker.unlink()
@@ -77,16 +60,15 @@ else:
 
 
 def run_collect(py: Path) -> None:
-    print("[collect] Fetching media + geo tags...")
+    print("[collect] Fetching media...")
     subprocess.call([str(py), str(ROOT / "run_collector_regional.py")], cwd=str(ROOT))
 
 
 def run_dashboard(py: Path) -> None:
     print("[3/3] Starting dashboard (browser will open)...")
-    print("      Close the window or Ctrl+C to stop.\n")
+    print("      Close this window to stop.\n")
     env = os.environ.copy()
     env["PYTHONPATH"] = str(ROOT / "src") + os.pathsep + str(ROOT)
-    # Prefer regional dashboard; fallback to old if missing
     dash = ROOT / "src" / "dashboard_regional.py"
     if not dash.exists():
         dash = ROOT / "src" / "dashboard.py"
@@ -104,10 +86,9 @@ def run_dashboard(py: Path) -> None:
 
 
 def main() -> None:
-    parser = argparse.ArgumentParser(description="RF Analytics simple launcher")
-    parser.add_argument("--update", action="store_true", help="Update code from GitHub first")
-    parser.add_argument("--collect", action="store_true", help="Collect news before UI")
-    parser.add_argument("--skip-update-check", action="store_true")
+    parser = argparse.ArgumentParser(description="RF Analytics launcher")
+    parser.add_argument("--update", action="store_true")
+    parser.add_argument("--collect", action="store_true")
     args = parser.parse_args()
 
     os.chdir(ROOT)
