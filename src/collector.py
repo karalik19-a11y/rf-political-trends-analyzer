@@ -1,4 +1,4 @@
-"""Collect public RSS feeds for RF political news."""
+"""Collect public RSS feeds for RF political news (independent sources)."""
 
 import logging
 import time
@@ -12,8 +12,12 @@ import requests
 import yaml
 from bs4 import BeautifulSoup
 
-from .database import init_db, upsert_item
-from .nlp_utils import extract_keywords, analyze_sentiment
+try:
+    from database import init_db, upsert_item
+    from nlp_utils import extract_keywords, analyze_sentiment
+except ImportError:
+    from .database import init_db, upsert_item
+    from .nlp_utils import extract_keywords, analyze_sentiment
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
 logger = logging.getLogger(__name__)
@@ -52,7 +56,7 @@ def parse_date(entry) -> datetime:
     return datetime.utcnow()
 
 
-def fetch_feed(url: str, user_agent: str, timeout: int) -> feedparser.FeedParserDict:
+def fetch_feed(url: str, user_agent: str, timeout: int):
     headers = {"User-Agent": user_agent}
     resp = requests.get(url, headers=headers, timeout=timeout)
     resp.raise_for_status()
@@ -60,15 +64,14 @@ def fetch_feed(url: str, user_agent: str, timeout: int) -> feedparser.FeedParser
 
 
 def collect() -> int:
-    """Run one collection cycle. Returns number of new items."""
     init_db()
     cfg = load_config()
     settings = cfg.get("settings", {})
-    ua = settings.get("user_agent", "RF-Political-Trends-Analyzer/1.1")
-    timeout = settings.get("request_timeout", 15)
-    delay = settings.get("delay_between_requests", 1.5)
-    max_items = settings.get("max_items_per_source", 50)
-    enable_sentiment = settings.get("enable_sentiment", True)
+    ua = settings.get("user_agent", "RF-Political-Trends-Analyzer/1.3")
+    timeout = settings.get("request_timeout", 20)
+    delay = settings.get("delay_between_requests", 2.0)
+    max_items = settings.get("max_items_per_source", 40)
+    enable_sentiment = settings.get("enable_sentiment", False)
     model_name = settings.get("sentiment_model", "cointegrated/rubert-tiny-sentiment-balanced")
 
     total_new = 0

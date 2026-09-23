@@ -7,7 +7,10 @@ from typing import Optional
 
 import pandas as pd
 
-from .database import get_all_for_analysis, init_db
+try:
+    from database import get_all_for_analysis, init_db
+except ImportError:
+    from .database import get_all_for_analysis, init_db
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 EXPORT_DIR = BASE_DIR / "exports"
@@ -20,7 +23,6 @@ def export_to_csv(limit: Optional[int] = None, filename: Optional[str] = None) -
     if not data:
         raise ValueError("No data to export")
     df = pd.DataFrame(data)
-    # Convert datetime for clean CSV
     if "published" in df.columns:
         df["published"] = pd.to_datetime(df["published"]).dt.strftime("%Y-%m-%d %H:%M:%S")
     ts = datetime.utcnow().strftime("%Y%m%d_%H%M%S")
@@ -34,7 +36,6 @@ def export_to_json(limit: Optional[int] = None, filename: Optional[str] = None) 
     data = get_all_for_analysis(limit=limit or 10000)
     if not data:
         raise ValueError("No data to export")
-    # Make JSON-serializable
     for item in data:
         if item.get("published") and hasattr(item["published"], "isoformat"):
             item["published"] = item["published"].isoformat()
@@ -47,13 +48,11 @@ def export_to_json(limit: Optional[int] = None, filename: Optional[str] = None) 
 
 if __name__ == "__main__":
     import argparse
-    parser = argparse.ArgumentParser(description="Export RF political news data")
+    parser = argparse.ArgumentParser()
     parser.add_argument("--format", choices=["csv", "json", "both"], default="both")
     parser.add_argument("--limit", type=int, default=None)
     args = parser.parse_args()
     if args.format in ("csv", "both"):
-        p = export_to_csv(limit=args.limit)
-        print(f"CSV exported: {p}")
+        print("CSV:", export_to_csv(limit=args.limit))
     if args.format in ("json", "both"):
-        p = export_to_json(limit=args.limit)
-        print(f"JSON exported: {p}")
+        print("JSON:", export_to_json(limit=args.limit))

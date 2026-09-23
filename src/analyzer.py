@@ -2,12 +2,16 @@
 
 from collections import Counter
 from datetime import datetime, timedelta
-from typing import Dict, List, Any, Tuple, Optional
+from typing import Dict, List, Any, Tuple
 
 import pandas as pd
 
-from .database import get_all_for_analysis, get_items_by_date_range
-from .nlp_utils import extract_keywords
+try:
+    from database import get_all_for_analysis, get_items_by_date_range
+    from nlp_utils import extract_keywords
+except ImportError:
+    from .database import get_all_for_analysis, get_items_by_date_range
+    from .nlp_utils import extract_keywords
 
 
 def load_dataframe(limit: int = 3000) -> pd.DataFrame:
@@ -47,14 +51,14 @@ def sentiment_stats(df: pd.DataFrame) -> Dict[str, Any]:
     scores = df["sentiment_score"].dropna()
     if scores.empty:
         return {"avg": None, "positive": 0, "neutral": 0, "negative": 0, "total_with_score": 0}
-    pos = (scores > 0.2).sum()
-    neg = (scores < -0.2).sum()
+    pos = int((scores > 0.2).sum())
+    neg = int((scores < -0.2).sum())
     neu = len(scores) - pos - neg
     return {
         "avg": float(scores.mean()),
-        "positive": int(pos),
-        "neutral": int(neu),
-        "negative": int(neg),
+        "positive": pos,
+        "neutral": neu,
+        "negative": neg,
         "total_with_score": len(scores),
     }
 
@@ -64,19 +68,15 @@ def recent_trends(days: int = 7) -> Dict[str, Any]:
     start = end - timedelta(days=days)
     items = get_items_by_date_range(start, end)
     if not items:
-        return {"period_days": days, "total": 0, "top_keywords": [], "by_source": {}, "sentiment": {}}
+        return {"period_days": days, "total": 0, "top_keywords": [], "by_source": {}, "sentiment": {}, "sample_titles": []}
 
     titles = [i.title for i in items]
     all_text = " ".join(titles)
     kws = extract_keywords(all_text, max_kw=15)
     top = [(k, 1) for k in kws.split(",") if k]
-
     by_source = Counter(i.source for i in items)
     scores = [i.sentiment_score for i in items if i.sentiment_score is not None]
-    sent = {
-        "avg": sum(scores) / len(scores) if scores else None,
-        "count": len(scores),
-    }
+    sent = {"avg": sum(scores) / len(scores) if scores else None, "count": len(scores)}
     return {
         "period_days": days,
         "total": len(items),
@@ -96,5 +96,4 @@ def keyword_timeline(df: pd.DataFrame, keyword: str) -> pd.DataFrame:
     filtered = df[mask]
     if filtered.empty:
         return pd.DataFrame()
-    daily = filtered.set_index("published").resample("D").size().reset_index(name="count")
-    return daily
+    return filtered.set_index("published").resample("D").size().reset_index(name="count")
