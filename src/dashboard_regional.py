@@ -1,4 +1,4 @@
-"""Regional political analytics dashboard: map + elections + media heat."""
+"""Regional political analytics dashboard."""
 
 from __future__ import annotations
 
@@ -22,66 +22,58 @@ from regional_db import init_regional_db, media_by_region, region_mention_counts
 from collector_regional import collect_regional
 from updater import check_update, apply_update, read_local_version
 
-st.set_page_config(page_title="RF Regional Political Analytics", layout="wide")
+st.set_page_config(page_title="Аналитика регионов РФ", layout="wide")
 st.title("Региональная политическая аналитика РФ")
-st.caption(
-    "Территории · выборы по субъектам · медиа→регион/город. "
-    "Агрегаты, не слежка. Запуск: START.bat или python bootstrap.py"
-)
+st.caption("Карта · новости по регионам · выборы. Запуск: START.bat")
 
 init_regional_db()
 
-st.sidebar.header("Запуск / обновление")
-st.sidebar.caption(f"Версия: {read_local_version()}")
+st.sidebar.header("Обновление")
+st.sidebar.caption(f"Версия {read_local_version()}")
 
 if st.sidebar.button("Проверить обновление на GitHub"):
-    with st.spinner("GitHub..."):
+    with st.spinner("Проверка..."):
         try:
             available, info = check_update()
             st.session_state["upd_info"] = info
             st.session_state["upd_avail"] = available
         except Exception as e:
-            st.sidebar.error(str(e))
+            st.sidebar.error(f"Не удалось проверить: {e}")
 
 info = st.session_state.get("upd_info")
 if info:
-    st.sidebar.write(f"Локально: **{info.get('local_version')}** / `{info.get('local_sha', '')[:7]}`")
-    st.sidebar.write(f"GitHub: **{info.get('remote_version')}** / `{info.get('remote_sha')}`")
-    if info.get("remote_message"):
-        st.sidebar.caption(info["remote_message"])
+    st.sidebar.write(f"Сейчас: **{info.get('local_version')}**")
+    st.sidebar.write(f"На сайте: **{info.get('remote_version')}**")
     if st.session_state.get("upd_avail"):
-        st.sidebar.warning("Есть обновление")
+        st.sidebar.warning("Доступно обновление")
         if st.sidebar.button("Скачать и установить", type="primary"):
-            with st.spinner("Обновление (data/ не трогаем)..."):
+            with st.spinner("Установка..."):
                 try:
-                    msg = apply_update()
-                    st.sidebar.success(msg)
-                    st.sidebar.info("Закройте окно и снова нажмите START.bat")
+                    apply_update()
+                    st.sidebar.success("Готово. Закройте программу и снова нажмите START.bat")
                     st.session_state["upd_avail"] = False
                 except Exception as e:
                     st.sidebar.error(str(e))
     else:
-        st.sidebar.success("Актуальная версия")
+        st.sidebar.success("У вас последняя версия")
 
 st.sidebar.markdown("---")
 st.sidebar.header("Данные")
-if st.sidebar.button("Собрать медиа + геопривязка", type="primary"):
-    with st.spinner("RSS..."):
+if st.sidebar.button("Собрать новости по регионам", type="primary"):
+    with st.spinner("Загрузка новостей..."):
         try:
             n = collect_regional()
-            st.sidebar.success(f"Новых: {n}")
+            st.sidebar.success(f"Добавлено новых: {n}")
             st.rerun()
         except Exception as e:
             st.sidebar.error(str(e))
 
-if st.sidebar.button("DEMO-структура выборов"):
+if st.sidebar.button("Создать пример данных выборов"):
     p = write_demo_seed()
-    st.sidebar.info(f"{p.name} — замените официальным CSV")
-
-st.sidebar.markdown("CSV выборов → папка `data/elections/`")
+    st.sidebar.info("Пример создан. Для реальных данных нужен файл CSV в папке data/elections")
 
 tab_map, tab_el, tab_media, tab_cmp = st.tabs(
-    ["Карта", "Выборы", "Медиа по регионам", "Сравнение"]
+    ["Карта", "Выборы", "Новости по регионам", "Сравнение"]
 )
 
 regions = load_regions()
@@ -93,12 +85,12 @@ el_df = elections_with_geo()
 with tab_map:
     st.subheader("Карта субъектов")
     metric = st.selectbox(
-        "Показатель",
+        "Что показать на карте",
         ["media_mentions", "turnout_pct", "leader_share_pct"],
         format_func=lambda x: {
-            "media_mentions": "Упоминания в медиа",
-            "turnout_pct": "Явка %",
-            "leader_share_pct": "Доля лидера %",
+            "media_mentions": "Сколько раз регион упоминался в новостях",
+            "turnout_pct": "Явка на выборах, %",
+            "leader_share_pct": "Доля лидера, %",
         }.get(x, x),
     )
     m = folium.Map(location=[64, 95], zoom_start=3)
@@ -136,15 +128,15 @@ with tab_map:
     )
 
 with tab_el:
-    st.subheader("Выборы по субъектам")
+    st.subheader("Выборы по регионам")
     if el_df.empty:
-        st.warning("Нет CSV в data/elections/. Нажмите DEMO или положите официальный файл.")
+        st.warning("Пока нет данных. Слева можно создать пример или положить CSV в data/elections.")
     else:
         eids = el_df["election_id"].unique().tolist()
-        eid = st.selectbox("Кампания", eids)
+        eid = st.selectbox("Какая кампания", eids)
         sub = el_df[el_df["election_id"] == eid].copy()
         if sub["source"].astype(str).str.contains("DEMO").any():
-            st.error("DEMO-структура, не официальные результаты ЦИК.")
+            st.warning("Сейчас показан пример, не официальные цифры ЦИК.")
         c1, c2 = st.columns(2)
         with c1:
             if "turnout_pct" in sub.columns:
@@ -173,13 +165,13 @@ with tab_el:
         st.dataframe(sub, use_container_width=True)
 
 with tab_media:
-    st.subheader("Медиа → регион / город")
+    st.subheader("Новости по регионам")
     items = media_by_region(3000)
     if not items:
-        st.info("Соберите медиа в сайдбаре. При блокировке RSS — VPN.")
+        st.info("Нажмите слева «Собрать новости по регионам». Если не грузится — попробуйте VPN.")
     else:
         mdf = pd.DataFrame(items)
-        st.metric("С геопривязкой", f"{mdf['region_code'].notna().sum()} / {len(mdf)}")
+        st.metric("С привязкой к региону", f"{mdf['region_code'].notna().sum()} из {len(mdf)}")
         counts = mdf.dropna(subset=["region_code"]).groupby("region_code").size().reset_index(name="n")
         counts["name"] = counts["region_code"].map(lambda c: (region_by_code(c) or {}).get("name", c))
         st.plotly_chart(
@@ -191,6 +183,7 @@ with tab_media:
             .sort_values("n", ascending=False).head(20)
         )
         if not city_counts.empty:
+            st.subheader("Города")
             st.plotly_chart(px.bar(city_counts, x="n", y="city_tag", orientation="h"), use_container_width=True)
         for _, r in mdf.head(25).iterrows():
             st.markdown(
@@ -199,18 +192,18 @@ with tab_media:
             )
 
 with tab_cmp:
-    st.subheader("Сравнение субъектов")
+    st.subheader("Сравнить два региона")
     codes = [r["code"] for r in regions]
     names = {r["code"]: r["name"] for r in regions}
-    a = st.selectbox("A", codes, format_func=lambda c: names.get(c, c), index=min(76, len(codes) - 1))
-    b = st.selectbox("B", codes, format_func=lambda c: names.get(c, c), index=min(77, len(codes) - 1))
+    a = st.selectbox("Первый регион", codes, format_func=lambda c: names.get(c, c), index=min(76, len(codes) - 1))
+    b = st.selectbox("Второй регион", codes, format_func=lambda c: names.get(c, c), index=min(77, len(codes) - 1))
     for col, code in zip(st.columns(2), (a, b)):
         with col:
             st.markdown(f"### {names.get(code, code)}")
-            st.write("Медиа:", mentions.get(code, 0))
+            st.write("Упоминаний в новостях:", mentions.get(code, 0))
             if not el_df.empty:
                 row = el_df[el_df["region_code"] == code]
                 if not row.empty:
                     st.write(row[["election_id", "turnout_pct", "leader_share_pct"]].head(3))
 
-st.caption("START.bat · bootstrap.py --update · data/ сохраняется при обновлении")
+st.caption("Закрыть программу: закрыть чёрное окно START.bat")
